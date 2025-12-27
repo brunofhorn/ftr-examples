@@ -1,3 +1,4 @@
 /node_modules
-**/node_modules/classification/nearest_neighborns/embeddings.json
+**/node_modules/
+classification/nearest_neighborns/embeddings.json
 classification/nearest_neighborns/train.zip
