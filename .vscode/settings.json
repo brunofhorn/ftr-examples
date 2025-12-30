@@ -2,6 +2,7 @@
     "conventionalCommits.scopes": [
         "classification",
         "llm",
-        "front classifier"
+        "front classifier",
+        "classification service"
     ]
 }
