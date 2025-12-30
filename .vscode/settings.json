@@ -1,6 +1,7 @@
 {
     "conventionalCommits.scopes": [
         "classification",
-        "llm"
+        "llm",
+        "front classifier"
     ]
 }
