@@ -1,55 +1,38 @@
 import { GoogleGenAI } from '@google/genai';
-import { Pool } from 'pg';
 import dotenv from 'dotenv';
 dotenv.config();
 
-function getDaysSincePurchase(purchase){
+const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
+
+function getDaysSincePurchase(purchase) {
     const today = new Date();
     const diffInMilis = today - purchase.date;
 
     return Math.floor(diffInMilis / 1000 / 60 / 60 / 24);
 }
 
-function getCustomerAge(customer){
+function getCustomerAge(customer) {
     const today = new Date();
     const diffWithBirthDate = today - customer.birth_date;
 
     return (new Date(diffWithBirthDate)).getFullYear() - 1970;
 }
 
-const pool = new Pool({
-    host: 'localhost',
-    user: 'postgres',      // coloque o usuário do seu banco
-    password: 'root',    // coloque a senha do seu banco
-    database: 'customer-chat'
-});
-const customer = (await pool.query("SELECT * FROM customers WHERE id = '513f0e2e-2fb0-4e7b-be3e-86312a0b0b08'")).rows[0];
+function getPurchasesString() {
+    let purchasesString = "";
 
-const purchases = (await pool.query(
-    "SELECT * FROM purchases WHERE customer_id = '513f0e2e-2fb0-4e7b-be3e-86312a0b0b08'"
-)).rows;
+    for (let purchase of purchases) {
+        purchasesString += `
+        - ${purchase.product}:
+            - Preço: ${purchase.price}
+            - Status: ${purchase.status}
+            - Dias desde a compra: ${getDaysSincePurchase(purchase)}`
+    }
 
-let purchasesString = "";
-
-for(let purchase of purchases){
-    purchasesString += `
-    - ${purchase.product}:
-        - Preço: ${purchase.price}
-        - Status: ${purchase.status}
-        - Dias desde a compra: ${getDaysSincePurchase(purchase)} 
-    `
+    return purchasesString;
 }
 
- //     id: '5481dd9e-0f80-47e1-915c-395346312a05',
- //     first_name: 'Maria Júlia',
- //     id: '513f0e2e-2fb0-4e7b-be3e-86312a0b0b08',
- //     first_name: 'Isabela',
-
-const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
-
-// inserir dados do banco de dados. "fake"
-
-const systemInstruction = `
+const systemInstruction = (customer, purchases) => `
 Você é um atendente de uma empresa de e-commerce. Você está conversando com clientes que
 podem ter dúvidas sobre suas compras recentes no site. Responda os clientes de forma amigável.
 
@@ -81,15 +64,21 @@ idade: ${getCustomerAge(customer)}
 estado: ${customer.state}
 
 <COMPRAS>
-${purchasesString}
+${getPurchasesString(purchases)}
 `;
 
-const response = await genai.models.generateContent({
-    model: 'gemini-2.0-flash',
-    config: {
-        systemInstruction: systemInstruction,
-    },
-    contents: "olá, quero comprar um sabonete"
-});
+async function getAIResponse(customerInfo, message) {
+    const instruction = systemInstruction(customerInfo.customer, customerInfo.purchases);
 
-console.log(response.candidates[0].content.parts[0].text);
+    const response = await genai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        config: {
+            systemInstruction: instruction,
+        },
+        contents: message
+    });
+
+    return response.candidates[0].content.parts[0].text;
+}
+
+export { getAIResponse }
